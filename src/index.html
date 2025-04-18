@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Big tr</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; color: #fff; }
+    #gameCanvas { display: block; width: 100vw; height: 100vh; }
+    #hud {
+      position: absolute; top: 10px; left: 10px;
+      font-family: sans-serif; font-size: 14px;
+      background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="hud">
+    <div id="health">Vida: 100%</div>
+    <div id="ammo">Munição: 30</div>
+    <div id="mode">Modo: Sobrevivência</div>
+  </div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+      alert('WebGL não suportado no seu navegador.');
+      throw 'WebGL not supported';
+    }
+    // Ajusta tamanho
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- Shaders mínimos ---
+    const vsSource = `
+      attribute vec3 aPosition;
+      uniform mat4 uProjection, uView, uModel;
+      void main() {
+        gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+      }
+    `;
+    const fsSource = `
+      precision mediump float;
+      void main() {
+        gl_FragColor = vec4(0.8, 0.6, 0.4, 1.0);
+      }
+    `;
+    function compile(src, type) {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(sh));
+      }
+      return sh;
+    }
+    const vs = compile(vsSource, gl.VERTEX_SHADER);
+    const fs = compile(fsSource, gl.FRAGMENT_SHADER);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+
+    // --- Buffers de exemplo (triângulo) ---
+    const vertices = new Float32Array([
+      0,  1, -5,
+     -1, -1, -5,
+      1, -1, -5
+    ]);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    const aPos = gl.getAttribLocation(program, 'aPosition');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+
+    // --- Matrizes ---
+    const uProjection = gl.getUniformLocation(program, 'uProjection');
+    const uView       = gl.getUniformLocation(program, 'uView');
+    const uModel      = gl.getUniformLocation(program, 'uModel');
+    function identity() {
+      return new Float32Array([1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1]);
+    }
+    // Projeção simples
+    const proj = identity();
+    proj[0] = proj[5] = 1.0;
+    proj[10] = -1.0;
+    proj[14] = -1.0;
+    proj[11] = -1.0;
+    gl.uniformMatrix4fv(uProjection, false, proj);
+    gl.uniformMatrix4fv(uView, false, identity());
+    gl.uniformMatrix4fv(uModel, false, identity());
+
+    // --- Loop principal ---
+    function render() {
+      gl.clearColor(0.05, 0.05, 0.05, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      // Atualiza HUD (exemplo)
+      // document.getElementById('health').textContent = 'Vida: ' + player.health + '%';
+
+      requestAnimationFrame(render);
+    }
+    render();
+
+    // --- Controles básicos ---
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup',   e => keys[e.code] = false);
+    function updateControls() {
+      // WASD para movimentação
+      if (keys['KeyW']) {/* moveForward() */}
+      if (keys['KeyS']) {/* moveBack() */}
+      if (keys['KeyA']) {/* strafeLeft() */}
+      if (keys['KeyD']) {/* strafeRight() */}
+      if (keys['Space']){/* jump() */}
+      requestAnimationFrame(updateControls);
+    }
+    updateControls();
+
+    // --- Placeholders de lógica de jogo ---
+    // function shoot() { /* lógica de tiro */ }
+    // function switchMode() { /* muda PVP/Coop/Sobrevivência */ }
+    // function spawnTank() { /* adiciona tanque que aumenta dano */ }
+    // function showVerticalMap() { /* exibe mini-mapa vertical */ }
+  </script>
+</body>
+</html>
